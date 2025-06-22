@@ -5,14 +5,14 @@ import os
 
 app = Flask(__name__)
 
-# Define data and logs directories
+# Define file paths
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 LOGS_DIR = os.path.join(os.path.dirname(__file__), "logs")
 
 TOWER_FILE = os.path.join(DATA_DIR, "tower1.xlsx")
-STATUS_OPTIONS = ["To Do", "In Progress", "Backlog", "Complete"]
+STATUS_OPTIONS = ["TO DO", "IN PROGRESS", "BACKLOG", "COMPLETE"]
 
-# Ensure logs directory exists
+# Ensure log directory exists
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 @app.route("/")
@@ -20,7 +20,11 @@ def index():
     try:
         df = pd.read_excel(TOWER_FILE, sheet_name="client list", engine="openpyxl")
         df["Client ID"] = df["Client ID"].astype(str)
-        client_ids = df["Client ID"].dropna().unique().tolist()
+
+        # Filter: only clients with Notifications = 1 and Coaching Client = 1
+        filtered_df = df[(df["Notifications"] == 1) & (df["Coaching Client"] == 1)]
+        client_ids = filtered_df["Client ID"].dropna().unique().tolist()
+
         return render_template("client_links.html", client_ids=client_ids)
     except Exception as e:
         return f"Error loading client list: {str(e)}", 500
@@ -32,11 +36,19 @@ def client_view(client_id):
         df["Client ID"] = df["Client ID"].astype(str)
         df = df[df["Client ID"] == str(client_id)]
 
+        # Filter out completed items
+        df = df[df["Status"].str.lower() != "COMPLETE"]
+
         if df.empty:
-            return f"No action items found for client ID {client_id}.", 404
+            return f"No pending action items found for client ID {client_id}.", 404
 
         items = df[["Action Items", "Status"]].reset_index(drop=True).to_dict(orient="index")
-        return render_template("client_view.html", client_id=client_id, items=items.items(), status_options=STATUS_OPTIONS)
+        return render_template(
+            "client_view.html",
+            client_id=client_id,
+            items=items.items(),
+            status_options=STATUS_OPTIONS
+        )
     except Exception as e:
         return f"Error loading action items: {str(e)}", 500
 
@@ -51,7 +63,7 @@ def submit():
             idx = key.split("_")[1]
             action_item = request.form.get(f"action_{idx}")
             status = request.form.get(key)
-            if action_item:  # Skip if action is blank
+            if action_item:  # Skip blank actions
                 updates.append({
                     "Client ID": client_id,
                     "Timestamp": timestamp,
@@ -63,9 +75,9 @@ def submit():
         return "No updates received.", 400
 
     try:
-        # Save to log file
         log_df = pd.DataFrame(updates)
         log_file = os.path.join(LOGS_DIR, f"{client_id}_log.csv")
+
         if os.path.exists(log_file):
             log_df.to_csv(log_file, mode="a", header=False, index=False)
         else:
@@ -75,6 +87,7 @@ def submit():
 
     return redirect(f"/client/{client_id}")
 
+# Bind to 0.0.0.0 and PORT env var for Render
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
