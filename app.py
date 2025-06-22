@@ -5,7 +5,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Paths
+# Paths (update if deploying to cloud or using env variables)
 DATA_PATH = "/Users/ahsanakhter/Library/Mobile Documents/com~apple~CloudDocs/tower leadership/codes/action-items/data/tower1.xlsx"
 LOG_FOLDER = "/Users/ahsanakhter/Library/Mobile Documents/com~apple~CloudDocs/tower leadership/codes/action-items/logs"
 
@@ -37,16 +37,17 @@ def client_view(client_id):
             log_df = pd.DataFrame(updates)
             os.makedirs(LOG_FOLDER, exist_ok=True)
             log_file = os.path.join(LOG_FOLDER, f"{client_id}_log.csv")
+
             if os.path.exists(log_file):
-                log_df.to_csv(log_file, mode='a', header=False, index=False)
-            else:
-                log_df.to_csv(log_file, index=False)
+                existing_log = pd.read_csv(log_file)
+                log_df = pd.concat([existing_log, log_df], ignore_index=True)
 
-        return redirect(f'/client/{client_id}')
+            log_df.to_csv(log_file, index=False)
 
-    active_items = client_df[client_df["Status"] != "Complete"]
-    status_options = ["To Do", "In Progress", "Backlog", "Complete"]
-    return render_template('client_view.html', client_id=client_id, items=active_items, status_options=status_options)
+        return redirect(f"/client/{client_id}")
 
+    return render_template('client_view.html', client_id=client_id, client_data=client_df)
+
+# This allows local running via `python app.py`
 if __name__ == '__main__':
     app.run(debug=True)
