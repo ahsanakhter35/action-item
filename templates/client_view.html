@@ -22,7 +22,7 @@
         <form method="POST">
             <ul>
                 {% for index, row in client_data.iterrows() %}
-                    {% set item = row.get("Action Items", row.get("Action Items", "Unnamed Item")) %}
+                    {% set item = row["Action Items"] %}
                     <li>
                         <label>{{ item }}</label>
                         <select name="{{ item }}">
