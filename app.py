@@ -15,7 +15,7 @@ STATUS_OPTIONS = ["To Do", "In Progress", "Backlog", "Complete"]
 @app.route("/")
 def index():
     try:
-        df = pd.read_excel(TOWER_FILE, sheet_name="ClientList")
+        df = pd.read_excel(TOWER_FILE, sheet_name="client list")
         client_ids = df["Client ID"].dropna().unique().tolist()
         return render_template("client_links.html", client_ids=client_ids)
     except Exception as e:
@@ -26,7 +26,7 @@ def client_view(client_id):
     try:
         df = pd.read_excel(TOWER_FILE, sheet_name="ActionItems")
         df = df[df["Client ID"] == client_id]
-        items = df[["Action Item", "Status"]].reset_index(drop=True).to_dict(orient="index")
+        items = df[["Action Items", "Status"]].reset_index(drop=True).to_dict(orient="index")
         return render_template("client_view.html", client_id=client_id, items=items.items(), status_options=STATUS_OPTIONS)
     except Exception as e:
         return f"Error loading action items: {str(e)}", 500
