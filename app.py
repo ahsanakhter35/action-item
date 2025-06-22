@@ -5,9 +5,10 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Paths (update if deploying to cloud or using env variables)
-DATA_PATH = "/Users/ahsanakhter/Library/Mobile Documents/com~apple~CloudDocs/tower leadership/codes/action-items/data/tower1.xlsx"
-LOG_FOLDER = "/Users/ahsanakhter/Library/Mobile Documents/com~apple~CloudDocs/tower leadership/codes/action-items/logs"
+# Paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(BASE_DIR, "data", "tower1.xlsx")
+LOG_FOLDER = os.path.join(BASE_DIR, "logs")
 
 @app.route('/')
 def home():
@@ -48,6 +49,7 @@ def client_view(client_id):
 
     return render_template('client_view.html', client_id=client_id, client_data=client_df)
 
-# This allows local running via `python app.py`
+# Run with dynamic port and proper host for Render
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
