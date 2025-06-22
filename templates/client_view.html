@@ -1,28 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Action Items for {{ client_id }}</title>
+    <title>Client {{ client_id }} - Action Items</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1 { font-size: 24px; }
+        ul { list-style: none; padding-left: 0; }
+        li { margin-bottom: 15px; }
+        label { display: inline-block; width: 300px; font-weight: bold; }
+        select { padding: 5px; width: 200px; }
+        button { padding: 10px 20px; font-size: 16px; }
+        a { margin-top: 20px; display: inline-block; }
+    </style>
 </head>
 <body>
     <h1>Action Items for Client {{ client_id }}</h1>
-    <form method="POST">
-        <ul>
-            {% for index, row in client_data.iterrows() %}
-                <li>
-                    <label>{{ row["Action Items"] }}</label>
-                    <select name="{{ row['Action Items'] }}">
-                        <option value="">--Select Status--</option>
-                        <option value="To Do">To Do</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Complete">Complete</option>
-                        <option value="Backlog">Backlog</option>
-                    </select>
-                </li>
-            {% endfor %}
-        </ul>
-        <button type="submit">Submit Updates</button>
-    </form>
-    <br>
+
+    {% if client_data.empty %}
+        <p><em>No action items found for this client.</em></p>
+    {% else %}
+        <form method="POST">
+            <ul>
+                {% for index, row in client_data.iterrows() %}
+                    {% set item = row.get("Action Items", row.get("Action Items", "Unnamed Item")) %}
+                    <li>
+                        <label>{{ item }}</label>
+                        <select name="{{ item }}">
+                            <option value="">-- Select Status --</option>
+                            <option value="To Do">To Do</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Complete">Complete</option>
+                            <option value="Backlog">Backlog</option>
+                        </select>
+                    </li>
+                {% endfor %}
+            </ul>
+            <button type="submit">Submit Updates</button>
+        </form>
+    {% endif %}
+
     <a href="{{ url_for('home') }}">← Back to Clients</a>
 </body>
 </html>
