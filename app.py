@@ -5,12 +5,15 @@ import os
 
 app = Flask(__name__)
 
-# Define relative paths
+# Define data and logs directories
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 LOGS_DIR = os.path.join(os.path.dirname(__file__), "logs")
 
 TOWER_FILE = os.path.join(DATA_DIR, "tower1.xlsx")
 STATUS_OPTIONS = ["To Do", "In Progress", "Backlog", "Complete"]
+
+# Ensure logs directory exists
+os.makedirs(LOGS_DIR, exist_ok=True)
 
 @app.route("/")
 def index():
@@ -30,7 +33,7 @@ def client_view(client_id):
         df = df[df["Client ID"] == str(client_id)]
 
         if df.empty:
-            return f"No action items found for client ID {client_id}", 404
+            return f"No action items found for client ID {client_id}.", 404
 
         items = df[["Action Items", "Status"]].reset_index(drop=True).to_dict(orient="index")
         return render_template("client_view.html", client_id=client_id, items=items.items(), status_options=STATUS_OPTIONS)
@@ -48,7 +51,7 @@ def submit():
             idx = key.split("_")[1]
             action_item = request.form.get(f"action_{idx}")
             status = request.form.get(key)
-            if action_item:  # Avoid blank entries
+            if action_item:  # Skip if action is blank
                 updates.append({
                     "Client ID": client_id,
                     "Timestamp": timestamp,
@@ -60,8 +63,8 @@ def submit():
         return "No updates received.", 400
 
     try:
+        # Save to log file
         log_df = pd.DataFrame(updates)
-        os.makedirs(LOGS_DIR, exist_ok=True)
         log_file = os.path.join(LOGS_DIR, f"{client_id}_log.csv")
         if os.path.exists(log_file):
             log_df.to_csv(log_file, mode="a", header=False, index=False)
@@ -73,4 +76,5 @@ def submit():
     return redirect(f"/client/{client_id}")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
