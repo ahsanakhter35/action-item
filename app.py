@@ -6,50 +6,57 @@ from datetime import datetime
 app = Flask(__name__)
 
 # Paths
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_PATH = os.path.join(BASE_DIR, "data", "tower1.xlsx")
+BASE_DIR = "/Users/ahsanakhter/Library/Mobile Documents/com~apple~CloudDocs/tower leadership/codes/action-items"
+TOWER_FILE = os.path.join(BASE_DIR, "data", "tower1.xlsx")
 LOG_FOLDER = os.path.join(BASE_DIR, "logs")
+LOG_FILE = os.path.join(LOG_FOLDER, "action_log.csv")
 
-@app.route('/')
-def home():
-    df = pd.read_excel(DATA_PATH, sheet_name=0)
+@app.route("/")
+def index():
+    df = pd.read_excel(TOWER_FILE, sheet_name="ClientList")
     filtered = df[(df["Coaching Client"] == 1) & (df["Notifications"] == 1)]
     client_ids = filtered["Client ID"].dropna().unique().tolist()
-    return render_template('client_links.html', client_ids=client_ids)
+    return render_template("client_links.html", client_ids=client_ids)
 
-@app.route('/client/<client_id>', methods=['GET', 'POST'])
+@app.route("/client/<client_id>")
 def client_view(client_id):
-    df = pd.read_excel(DATA_PATH, sheet_name=0)
-    client_df = df[df["Client ID"] == client_id]
+    df = pd.read_excel(TOWER_FILE, sheet_name="ActionItems")
+    client_data = df[(df["Client ID"] == client_id) & (df["Status"] != "Complete")].copy()
+    items = list(client_data[["Action Item", "Status"]].to_dict(orient="records"))
+    return render_template("client_view.html",
+                           client_id=client_id,
+                           items=enumerate(items),
+                           status_options=["To Do", "In Progress", "Complete", "Backlog"])
 
-    if request.method == 'POST':
-        updates = []
-        for item in client_df["Action Items"]:
-            new_status = request.form.get(item)
-            if new_status:
-                updates.append({
-                    "Client ID": client_id,
-                    "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Action Item": item,
-                    "Status": new_status
-                })
+@app.route("/submit", methods=["POST"])
+def submit():
+    client_id = request.form.get("client_id")
+    df = pd.read_excel(TOWER_FILE, sheet_name="ActionItems")
+    client_data = df[df["Client ID"] == client_id].copy()
+    client_data = client_data[client_data["Status"] != "Complete"].copy()
 
-        if updates:
-            log_df = pd.DataFrame(updates)
+    now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    log_entries = []
+
+    for idx, (_, row) in enumerate(client_data.iterrows()):
+        new_status = request.form.get(f"status_{idx}")
+        if new_status and new_status != row["Status"]:
+            log_entries.append({
+                "Client ID": client_id,
+                "Timestamp": now,
+                "Action Item": row["Action Item"],
+                "Status": new_status
+            })
+
+    if log_entries:
+        log_df = pd.DataFrame(log_entries)
+        if os.path.exists(LOG_FILE):
+            log_df.to_csv(LOG_FILE, mode="a", header=False, index=False)
+        else:
             os.makedirs(LOG_FOLDER, exist_ok=True)
-            log_file = os.path.join(LOG_FOLDER, f"{client_id}_log.csv")
+            log_df.to_csv(LOG_FILE, index=False)
 
-            if os.path.exists(log_file):
-                existing_log = pd.read_csv(log_file)
-                log_df = pd.concat([existing_log, log_df], ignore_index=True)
+    return redirect(f"/client/{client_id}")
 
-            log_df.to_csv(log_file, index=False)
-
-        return redirect(f"/client/{client_id}")
-
-    return render_template('client_view.html', client_id=client_id, client_data=client_df)
-
-# Run with dynamic port and proper host for Render
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    app.run(debug=True)
