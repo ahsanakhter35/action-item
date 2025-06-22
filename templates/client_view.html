@@ -4,28 +4,25 @@
     <title>Action Items for {{ client_id }}</title>
 </head>
 <body>
-    <h1>Update Action Items: {{ client_id }}</h1>
-    <form method="post">
-        <table border="1" cellpadding="8">
-            <tr>
-                <th>Action Item</th>
-                <th>Update Status</th>
-            </tr>
-            {% for index, row in items.iterrows() %}
-            <tr>
-                <td>{{ row["Action Items"] }}</td>
-                <td>
+    <h1>Action Items for Client {{ client_id }}</h1>
+    <form method="POST">
+        <ul>
+            {% for index, row in client_data.iterrows() %}
+                <li>
+                    <label>{{ row["Action Items"] }}</label>
                     <select name="{{ row['Action Items'] }}">
-                        {% for status in status_options %}
-                            <option value="{{ status }}">{{ status }}</option>
-                        {% endfor %}
+                        <option value="">--Select Status--</option>
+                        <option value="To Do">To Do</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Complete">Complete</option>
+                        <option value="Backlog">Backlog</option>
                     </select>
-                </td>
-            </tr>
+                </li>
             {% endfor %}
-        </table>
-        <br>
-        <input type="submit" value="Submit Updates">
+        </ul>
+        <button type="submit">Submit Updates</button>
     </form>
+    <br>
+    <a href="{{ url_for('home') }}">← Back to Clients</a>
 </body>
 </html>
