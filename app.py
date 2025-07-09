@@ -1,18 +1,16 @@
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, send_file
 import pandas as pd
 from datetime import datetime
 import os
 
 app = Flask(__name__)
 
-# File paths
+# Paths
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 LOGS_DIR = os.path.join(os.path.dirname(__file__), "logs")
-
 TOWER_FILE = os.path.join(DATA_DIR, "tower1.xlsx")
-STATUS_OPTIONS = ["TO DO", "IN PROGRESS", "BACKLOG", "COMPLETE"]
 
-# Ensure logs folder exists
+STATUS_OPTIONS = ["TO DO", "IN PROGRESS", "BACKLOG", "COMPLETE"]
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 @app.route("/")
@@ -20,11 +18,8 @@ def index():
     try:
         df = pd.read_excel(TOWER_FILE, sheet_name="client list", engine="openpyxl")
         df["Client ID"] = df["Client ID"].astype(str)
-
-        # Filter only rows where Notifications = 1 and Coaching Client = 1
-        filtered_df = df[(df["Notifications"] == 1) & (df["Coaching Client"] == 1)]
-        client_ids = filtered_df["Client ID"].dropna().unique().tolist()
-
+        filtered = df[(df["Notifications"] == 1) & (df["Coaching Client"] == 1)]
+        client_ids = filtered["Client ID"].dropna().unique().tolist()
         return render_template("client_links.html", client_ids=client_ids)
     except Exception as e:
         return f"Error loading client list: {str(e)}", 500
@@ -34,17 +29,12 @@ def client_view(client_id):
     try:
         df = pd.read_excel(TOWER_FILE, sheet_name="action items", engine="openpyxl")
         df["Client ID"] = df["Client ID"].astype(str)
-
-        # Filter for this client
         df = df[df["Client ID"] == str(client_id)]
-
-        # Exclude completed items
         df = df[df["Status"] != "COMPLETE"]
 
         if df.empty:
             return f"No pending action items found for client ID {client_id}.", 404
 
-        # Format for template
         items = df[["Action Items", "Status"]].reset_index(drop=True).to_dict(orient="index")
         return render_template("client_view.html", client_id=client_id, items=items.items(), status_options=STATUS_OPTIONS)
     except Exception as e:
@@ -74,17 +64,26 @@ def submit():
 
     try:
         log_df = pd.DataFrame(updates)
-        log_file = os.path.join(LOGS_DIR, f"{client_id}_log.csv")
-        if os.path.exists(log_file):
-            log_df.to_csv(log_file, mode="a", header=False, index=False)
+        safe_filename = f"{client_id.replace(',', '').replace(' ', '_')}_log.csv"
+        log_path = os.path.join(LOGS_DIR, safe_filename)
+        if os.path.exists(log_path):
+            log_df.to_csv(log_path, mode="a", header=False, index=False)
         else:
-            log_df.to_csv(log_file, index=False)
+            log_df.to_csv(log_path, index=False)
     except Exception as e:
         return f"Error saving updates: {str(e)}", 500
 
-    return redirect(f"/client/{client_id}")
+    return render_template("thank_you.html", client_id=client_id)
 
-# Render-compatible run block
+@app.route("/logs/<client_id>")
+def download_log(client_id):
+    safe_filename = f"{client_id.replace(',', '').replace(' ', '_')}_log.csv"
+    log_path = os.path.join(LOGS_DIR, safe_filename)
+    if os.path.exists(log_path):
+        return send_file(log_path, as_attachment=True)
+    else:
+        return f"No log file found for client {client_id}.", 404
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
