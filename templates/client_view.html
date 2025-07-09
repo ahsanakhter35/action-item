@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Client {{ client_id }} - Action Items</title>
+    <title>Action Items – {{ client_id }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             padding: 40px;
-            background-color: #f0f0f0;
+            background-color: #f7f7f7;
         }
         h1 {
             font-size: 24px;
@@ -15,8 +15,8 @@
         form {
             background: #fff;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px #ccc;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #ddd;
         }
         ul {
             list-style: none;
@@ -26,26 +26,36 @@
             margin-bottom: 15px;
         }
         label {
-            display: inline-block;
-            width: 300px;
+            display: block;
             font-weight: bold;
+            margin-bottom: 5px;
         }
         select {
-            padding: 5px;
-            width: 200px;
+            padding: 6px;
+            font-size: 14px;
+            width: 250px;
         }
         button {
+            margin-top: 20px;
             padding: 10px 20px;
             font-size: 16px;
-            margin-top: 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <h1>Action Items for Client {{ client_id }}</h1>
+
+    <h1>Action Items for {{ client_id }}</h1>
 
     {% if items|length == 0 %}
-        <p><em>No action items found.</em></p>
+        <p><em>No action items to display.</em></p>
     {% else %}
         <form method="POST" action="/submit">
             <input type="hidden" name="client_id" value="{{ client_id }}">
@@ -53,9 +63,14 @@
                 {% for idx, row in items %}
                     <li>
                         <label>{{ row["Action Items"] }}</label>
+                        <!-- Hidden input to send action item name -->
+                        <input type="hidden" name="action_{{ idx }}" value="{{ row["Action Items"] }}">
+                        <!-- Dropdown for status -->
                         <select name="status_{{ idx }}">
                             {% for option in status_options %}
-                                <option value="{{ option }}" {% if row["Status"] == option %}selected{% endif %}>{{ option }}</option>
+                                <option value="{{ option }}" {% if row["Status"] == option %}selected{% endif %}>
+                                    {{ option }}
+                                </option>
                             {% endfor %}
                         </select>
                     </li>
@@ -64,5 +79,6 @@
             <button type="submit">Submit Updates</button>
         </form>
     {% endif %}
+
 </body>
 </html>
